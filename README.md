@@ -29,9 +29,9 @@ Se usan tres servicios. Los dos primeros tienen plan gratuito; el tercero se pag
 1. Entrá a https://supabase.com, creá una cuenta y apretá **New project**. Elegí un nombre, una contraseña (guardala) y la región **South America (São Paulo)**.
 2. Cuando termine de crearse, andá al menú de la izquierda → **SQL Editor** → **New query**.
 3. Abrí el archivo [`supabase/schema.sql`](supabase/schema.sql) de este repositorio, copiá **todo** su contenido, pegalo y apretá **Run**. Tiene que decir "Success".
-4. Andá a **Project Settings → API** (o **Data API / API Keys**) y anotá:
-   - **Project URL** (algo como `https://abcd1234.supabase.co`)
-   - **anon public key** (también llamada *publishable key*; un texto largo)
+4. Anotá dos datos. La forma más simple es el botón **Connect**, arriba en la página principal del proyecto, que muestra los dos juntos. Si no lo ves:
+   - **Project URL** (algo como `https://abcd1234.supabase.co`): en **Project Settings → Data API**.
+   - **Publishable key** (empieza con `sb_publishable_`) o, en proyectos más viejos, la **anon public key** (empieza con `eyJ`): en **Project Settings → API Keys**. Cualquiera de las dos sirve. Nunca uses la *secret* ni la *service_role*.
 5. (Opcional, recomendado para uso familiar) **Authentication → Sign In / Providers → Email** y desactivá **Confirm email**, así no hace falta confirmar el email al crear la cuenta.
 
 ### Paso 2 — Anthropic (la IA)
@@ -49,7 +49,7 @@ Se usan tres servicios. Los dos primeros tienen plan gratuito; el tercero se pag
    | Name | Value |
    |---|---|
    | `NEXT_PUBLIC_SUPABASE_URL` | la Project URL del paso 1 |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | la anon key del paso 1 |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | la publishable key (o anon key) del paso 1 |
    | `ANTHROPIC_API_KEY` | la clave del paso 2 |
 
 4. Apretá **Deploy**. En uno o dos minutos te da la dirección de tu app (algo como `https://leibomedic.vercel.app`).
