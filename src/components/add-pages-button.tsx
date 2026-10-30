@@ -6,7 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { requestAnalysis, uploadPages } from "@/lib/upload";
 
 /** Agrega hojas a un estudio ya cargado y lo vuelve a analizar con todas las hojas. */
-export function AddPagesButton({ familyId, documentId, nextPosition }: { familyId: string; documentId: string; nextPosition: number }) {
+export function AddPagesButton({
+  familyId,
+  documentId,
+  nextPosition,
+  analyze,
+}: {
+  familyId: string;
+  documentId: string;
+  nextPosition: number;
+  analyze: boolean;
+}) {
   const router = useRouter();
   const cameraRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
@@ -20,8 +30,10 @@ export function AddPagesButton({ familyId, documentId, nextPosition }: { familyI
     try {
       setStatus("Subiendo…");
       await uploadPages(createClient(), { familyId, documentId, files, startPosition: nextPosition });
-      setStatus("La IA está releyendo el estudio completo…");
-      await requestAnalysis(documentId);
+      if (analyze) {
+        setStatus("La IA está releyendo el estudio completo…");
+        await requestAnalysis(documentId);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado");
     }

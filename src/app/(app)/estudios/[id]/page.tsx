@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createDoctorFromDocument, deleteDocument, deleteDocumentFile, updateDocument } from "@/app/actions";
 import { AddPagesButton } from "@/components/add-pages-button";
+import { FindingsEditor } from "@/components/findings-editor";
 import { ConfirmButton, SubmitButton } from "@/components/buttons";
 import { ReanalyzeButton } from "@/components/reanalyze-button";
 import { Badge, Field, InfoRow, PageHeader, Select } from "@/components/ui";
+import { isAiEnabled } from "@/lib/ai-config";
 import { requireFamily } from "@/lib/family";
 import { DOCUMENT_CATEGORIES, FLAG_STYLES, doctorName, formatDate, fullName } from "@/lib/labels";
 import type { Doctor, DocumentFile, MedicalDocument, Person } from "@/lib/types";
@@ -37,7 +39,8 @@ export default async function DocumentPage({
     : { data: [] };
   const urls = Object.fromEntries((signed ?? []).map((s) => [s.path, s.signedUrl]));
   const nextPosition = files.reduce((max, f) => Math.max(max, f.position), -1) + 1;
-  const editing = editar === "1" || doc.status === "error";
+  const aiEnabled = isAiEnabled();
+  const editing = editar === "1" || doc.status === "error" || (!aiEnabled && doc.status === "pendiente");
 
   return (
     <>
@@ -59,7 +62,7 @@ export default async function DocumentPage({
         }
       />
 
-      {doc.status === "error" && (
+      {doc.status === "error" && aiEnabled && (
         <div className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">
           <p className="font-medium">No se pudo analizar automáticamente.</p>
           <p>{doc.error_message}</p>
@@ -68,7 +71,12 @@ export default async function DocumentPage({
           </div>
         </div>
       )}
-      {(doc.status === "pendiente" || doc.status === "procesando") && (
+      {!aiEnabled && doc.status === "pendiente" && (
+        <div className="mb-4 rounded-xl bg-sky-50 p-4 text-sm text-sky-800">
+          La lectura automática con IA no está activada. Mirá las hojas del estudio y completá los datos a mano.
+        </div>
+      )}
+      {aiEnabled && (doc.status === "pendiente" || doc.status === "procesando") && (
         <div className="mb-4 rounded-xl bg-sky-50 p-4 text-sm text-sky-800">
           <p>Este documento todavía no fue analizado.</p>
           <div className="mt-3">
@@ -81,9 +89,9 @@ export default async function DocumentPage({
         <div className="space-y-4 lg:col-span-3">
           {editing ? (
             <form action={updateDocument} className="card space-y-4">
-              <h2 className="font-semibold">Corregir datos</h2>
+              <h2 className="font-semibold">{doc.status === "listo" ? "Corregir datos" : "Completar datos"}</h2>
               <input type="hidden" name="id" value={id} />
-              <Field label="Título" name="title" defaultValue={doc.title} required />
+              <Field label="Título" name="title" defaultValue={doc.title} placeholder="Ej: Hemograma completo" required />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Select
                   label="Tipo"
@@ -108,7 +116,21 @@ export default async function DocumentPage({
                 />
               </div>
               <Field label="Institución / laboratorio" name="institution" defaultValue={doc.institution} />
-              <Field label="Resumen" name="summary" defaultValue={doc.summary} textarea />
+              <Field label="Resumen / conclusión" name="summary" defaultValue={doc.summary} textarea />
+              <Field
+                label="Diagnósticos (uno por línea)"
+                name="diagnoses"
+                defaultValue={(doc.diagnoses ?? []).join("\n")}
+                textarea
+              />
+              <Field
+                label="Para tener en cuenta (uno por línea)"
+                name="highlights"
+                defaultValue={(doc.highlights ?? []).join("\n")}
+                placeholder="Ej: repetir en 6 meses"
+                textarea
+              />
+              <FindingsEditor initial={doc.findings ?? []} />
               <div className="flex gap-2">
                 <SubmitButton>Guardar</SubmitButton>
                 <Link href={`/estudios/${id}`} className="btn-secondary">
@@ -219,7 +241,7 @@ export default async function DocumentPage({
           )}
 
           <div className="flex flex-wrap gap-2">
-            {doc.status === "listo" && <ReanalyzeButton documentId={id} />}
+            {doc.status === "listo" && aiEnabled && <ReanalyzeButton documentId={id} />}
             <ConfirmButton action={deleteDocument.bind(null, id)} message="Se va a borrar el estudio y el archivo. ¿Seguro?">
               Borrar estudio
             </ConfirmButton>
@@ -269,8 +291,10 @@ export default async function DocumentPage({
               })}
             </ol>
             <div className="mt-4 border-t border-slate-100 pt-4">
-              <p className="mb-2 text-sm text-slate-600">¿Faltó alguna hoja? Agregala y la IA vuelve a leer el estudio completo.</p>
-              <AddPagesButton familyId={family.id} documentId={id} nextPosition={nextPosition} />
+              <p className="mb-2 text-sm text-slate-600">
+                ¿Faltó alguna hoja? {aiEnabled ? "Agregala y la IA vuelve a leer el estudio completo." : "Agregala acá."}
+              </p>
+              <AddPagesButton familyId={family.id} documentId={id} nextPosition={nextPosition} analyze={aiEnabled} />
             </div>
           </div>
         </div>

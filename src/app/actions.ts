@@ -4,12 +4,40 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireFamily } from "@/lib/family";
 import { createClient } from "@/lib/supabase/server";
+import type { Finding } from "@/lib/types";
 
 function str(formData: FormData, key: string) {
   const value = formData.get(key);
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+function lines(formData: FormData, key: string) {
+  return (str(formData, key) ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+const FLAGS = ["normal", "alto", "bajo", "anormal", "sin_referencia"];
+
+function findings(formData: FormData): Finding[] {
+  try {
+    const parsed: unknown = JSON.parse(str(formData, "findings") ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((f) => f && typeof f.name === "string" && typeof f.value === "string" && f.name.trim() && f.value.trim())
+      .map((f) => ({
+        name: f.name.trim(),
+        value: f.value.trim(),
+        unit: typeof f.unit === "string" && f.unit.trim() ? f.unit.trim() : null,
+        reference: typeof f.reference === "string" && f.reference.trim() ? f.reference.trim() : null,
+        flag: FLAGS.includes(f.flag) ? f.flag : "sin_referencia",
+      }));
+  } catch {
+    return [];
+  }
 }
 
 function fail(message: string): never {
@@ -212,6 +240,11 @@ export async function updateDocument(formData: FormData) {
       doctor_id: str(formData, "doctor_id"),
       institution: str(formData, "institution"),
       summary: str(formData, "summary"),
+      diagnoses: lines(formData, "diagnoses"),
+      highlights: lines(formData, "highlights"),
+      findings: findings(formData),
+      status: "listo",
+      error_message: null,
     })
     .eq("id", id);
   if (error) fail(error.message);

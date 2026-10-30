@@ -4,7 +4,7 @@ import { DOCUMENT_CATEGORIES, formatDate } from "@/lib/labels";
 import type { MedicalDocument } from "@/lib/types";
 
 const STATUS: Record<string, { label: string; className: string }> = {
-  pendiente: { label: "Pendiente", className: "bg-slate-50 text-slate-600 ring-slate-200" },
+  pendiente: { label: "Para completar", className: "bg-slate-50 text-slate-600 ring-slate-200" },
   procesando: { label: "Analizando…", className: "bg-sky-50 text-sky-700 ring-sky-200" },
   error: { label: "Error", className: "bg-red-50 text-red-700 ring-red-200" },
 };

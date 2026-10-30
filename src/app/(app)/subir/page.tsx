@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui";
 import { Uploader } from "@/components/uploader";
+import { isAiEnabled } from "@/lib/ai-config";
 import { requireFamily } from "@/lib/family";
 import { fullName } from "@/lib/labels";
 
@@ -12,9 +13,18 @@ export default async function UploadPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader
         title="Subir estudio"
-        subtitle="Sacale una foto o subí el PDF. La IA identifica de qué estudio se trata, de quién es, la fecha, el médico y los valores."
+        subtitle={
+          isAiEnabled()
+            ? "Sacale una foto o subí el PDF. La IA identifica de qué estudio se trata, de quién es, la fecha, el médico y los valores."
+            : "Sacale una foto o subí el PDF. Después de subirlo vas a completar los datos (la lectura automática con IA todavía no está activada)."
+        }
       />
-      <Uploader familyId={family.id} persons={(persons ?? []).map((p) => ({ id: p.id, name: fullName(p) }))} defaultPersonId={persona} />
+      <Uploader
+        familyId={family.id}
+        persons={(persons ?? []).map((p) => ({ id: p.id, name: fullName(p) }))}
+        defaultPersonId={persona}
+        aiEnabled={isAiEnabled()}
+      />
     </>
   );
 }

@@ -34,7 +34,9 @@ Se usan tres servicios. Los dos primeros tienen plan gratuito; el tercero se pag
    - **Publishable key** (empieza con `sb_publishable_`) o, en proyectos más viejos, la **anon public key** (empieza con `eyJ`): en **Project Settings → API Keys**. Cualquiera de las dos sirve. Nunca uses la *secret* ni la *service_role*.
 5. (Opcional, recomendado para uso familiar) **Authentication → Sign In / Providers → Email** y desactivá **Confirm email**, así no hace falta confirmar el email al crear la cuenta.
 
-### Paso 2 — Anthropic (la IA)
+### Paso 2 — Anthropic (la IA) — opcional
+
+Sin este paso la app funciona igual: los estudios se suben y los datos (tipo, fecha, valores, etc.) se cargan a mano. La IA se puede activar después agregando la clave en Vercel (paso 3) y volviendo a publicar (**Deployments → ⋯ → Redeploy**).
 
 1. Entrá a https://console.anthropic.com y creá una cuenta.
 2. En **Billing**, cargá crédito (alcanza con el mínimo).
@@ -44,11 +46,11 @@ Se usan tres servicios. Los dos primeros tienen plan gratuito; el tercero se pag
 
 1. Entrá a https://vercel.com y creá una cuenta **con tu usuario de GitHub**.
 2. **Add New → Project** → elegí el repositorio **LeiboMedic** → **Import**.
-3. En **Environment Variables** agregá estas tres:
+3. En **Environment Variables** agregá estas variables (la tercera solo si hiciste el paso 2):
 
    | Name | Value |
    |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | la Project URL del paso 1 |
+   | `NEXT_PUBLIC_SUPABASE_URL` | la Project URL del paso 1, **sin** `/rest/v1/` al final |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | la publishable key (o anon key) del paso 1 |
    | `ANTHROPIC_API_KEY` | la clave del paso 2 |
 

@@ -35,10 +35,12 @@ export function Uploader({
   familyId,
   persons,
   defaultPersonId,
+  aiEnabled,
 }: {
   familyId: string;
   persons: { id: string; name: string }[];
   defaultPersonId?: string;
+  aiEnabled: boolean;
 }) {
   const [personId, setPersonId] = useState(defaultPersonId ?? "");
   const [studies, setStudies] = useState<Study[]>([]);
@@ -118,8 +120,10 @@ export function Uploader({
 
       await uploadPages(supabase, { familyId, documentId: doc.id, files: study.pages.map((p) => p.file) });
 
-      update(study.key, { state: "analizando" });
-      await requestAnalysis(doc.id);
+      if (aiEnabled) {
+        update(study.key, { state: "analizando" });
+        await requestAnalysis(doc.id);
+      }
       update(study.key, { state: "listo" });
     } catch (error) {
       update(study.key, { state: "error", message: error instanceof Error ? error.message : "Error inesperado" });
@@ -204,11 +208,11 @@ export function Uploader({
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
                 )}
                 <span className={study.state === "error" ? "text-red-600" : study.state === "listo" ? "text-emerald-600" : "text-slate-500"}>
-                  {study.state === "error" ? study.message : STATE_LABEL[study.state]}
+                  {study.state === "error" ? study.message : study.state === "listo" && !aiEnabled ? "Subido" : STATE_LABEL[study.state]}
                 </span>
                 {study.documentId && (study.state === "listo" || study.state === "error") && (
                   <Link href={`/estudios/${study.documentId}`} className="font-medium text-brand-700 hover:underline">
-                    Ver
+                    {aiEnabled ? "Ver" : "Completar datos →"}
                   </Link>
                 )}
               </div>
@@ -278,7 +282,7 @@ export function Uploader({
 
       {pending > 0 && (
         <button type="button" onClick={processAll} disabled={busy} className="btn-primary w-full py-3 text-base">
-          {busy ? "Procesando…" : `Subir y analizar ${pending} ${pending === 1 ? "estudio" : "estudios"}`}
+          {busy ? "Procesando…" : `${aiEnabled ? "Subir y analizar" : "Subir"} ${pending} ${pending === 1 ? "estudio" : "estudios"}`}
         </button>
       )}
     </div>
