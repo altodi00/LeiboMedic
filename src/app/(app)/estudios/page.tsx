@@ -15,7 +15,7 @@ export default async function DocumentsPage({
 
   let query = supabase
     .from("documents")
-    .select("id, title, file_name, category, study_date, status, person_id, findings, institution")
+    .select("id, title, category, study_date, status, person_id, findings, institution")
     .eq("family_id", family.id)
     .order("study_date", { ascending: false, nullsFirst: true })
     .order("created_at", { ascending: false });

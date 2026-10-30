@@ -164,17 +164,13 @@ create table public.history_entries (
 
 create index history_person_idx on public.history_entries (person_id, entry_date desc);
 
--- Estudios y documentos subidos (foto o PDF), clasificados por la IA.
+-- Estudios y documentos, clasificados por la IA. Cada uno puede tener varias hojas (document_files).
 create table public.documents (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families (id) on delete cascade,
   person_id uuid,
   doctor_id uuid,
   visit_id uuid,
-  storage_path text not null,
-  file_name text,
-  mime_type text,
-  file_size bigint,
   status text not null default 'pendiente'
     check (status in ('pendiente', 'procesando', 'listo', 'error')),
   error_message text,
@@ -192,6 +188,7 @@ create table public.documents (
   uploaded_by uuid references auth.users (id) on delete set null default auth.uid(),
   analyzed_at timestamptz,
   created_at timestamptz not null default now(),
+  unique (id, family_id),
   foreign key (person_id, family_id) references public.persons (id, family_id) on delete set null (person_id),
   foreign key (doctor_id, family_id) references public.doctors (id, family_id) on delete set null (doctor_id),
   foreign key (visit_id, family_id) references public.visits (id, family_id) on delete set null (visit_id)
@@ -199,6 +196,22 @@ create table public.documents (
 
 create index documents_family_idx on public.documents (family_id, created_at desc);
 create index documents_person_idx on public.documents (person_id, study_date desc);
+
+-- Hojas (fotos o PDFs) de cada estudio, en orden.
+create table public.document_files (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  document_id uuid not null,
+  position integer not null default 0,
+  storage_path text not null,
+  file_name text,
+  mime_type text not null,
+  file_size bigint,
+  created_at timestamptz not null default now(),
+  foreign key (document_id, family_id) references public.documents (id, family_id) on delete cascade
+);
+
+create index document_files_document_idx on public.document_files (document_id, position);
 
 -- ───────────────────────── Seguridad (RLS) ─────────────────────────
 
@@ -210,6 +223,7 @@ alter table public.person_doctors enable row level security;
 alter table public.visits enable row level security;
 alter table public.history_entries enable row level security;
 alter table public.documents enable row level security;
+alter table public.document_files enable row level security;
 
 create policy "ver mi familia" on public.families
   for select using (public.is_family_member(id));
@@ -225,7 +239,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['persons', 'doctors', 'person_doctors', 'visits', 'history_entries', 'documents'] loop
+  foreach t in array array['persons', 'doctors', 'person_doctors', 'visits', 'history_entries', 'documents', 'document_files'] loop
     execute format(
       'create policy "datos de mi familia" on public.%I for all
          using (public.is_family_member(family_id))
@@ -237,7 +251,7 @@ end;
 $$;
 
 -- ───────────────────────── Archivos (Storage) ─────────────────────────
--- Los archivos se guardan como  <family_id>/<archivo>  en un bucket privado.
+-- Los archivos se guardan como  <family_id>/<document_id>/<archivo>  en un bucket privado.
 
 insert into storage.buckets (id, name, public)
 values ('documentos', 'documentos', false)

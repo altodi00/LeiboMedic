@@ -13,7 +13,7 @@ export function DocumentList({
   documents,
   personNames,
 }: {
-  documents: Pick<MedicalDocument, "id" | "title" | "file_name" | "category" | "study_date" | "status" | "person_id" | "findings" | "institution">[];
+  documents: Pick<MedicalDocument, "id" | "title" | "category" | "study_date" | "status" | "person_id" | "findings" | "institution">[];
   personNames?: Record<string, string>;
 }) {
   return (
@@ -24,7 +24,7 @@ export function DocumentList({
           <li key={d.id}>
             <Link href={`/estudios/${d.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-slate-900">{d.title ?? d.file_name ?? "Documento"}</p>
+                <p className="truncate font-medium text-slate-900">{d.title ?? "Documento sin analizar"}</p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
                   <span>{formatDate(d.study_date)}</span>
                   {d.category && <span>· {DOCUMENT_CATEGORIES[d.category] ?? d.category}</span>}

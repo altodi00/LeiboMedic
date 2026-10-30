@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createDoctorFromDocument, deleteDocument, updateDocument } from "@/app/actions";
+import { createDoctorFromDocument, deleteDocument, deleteDocumentFile, updateDocument } from "@/app/actions";
+import { AddPagesButton } from "@/components/add-pages-button";
 import { ConfirmButton, SubmitButton } from "@/components/buttons";
 import { ReanalyzeButton } from "@/components/reanalyze-button";
 import { Badge, Field, InfoRow, PageHeader, Select } from "@/components/ui";
 import { requireFamily } from "@/lib/family";
 import { DOCUMENT_CATEGORIES, FLAG_STYLES, doctorName, formatDate, fullName } from "@/lib/labels";
-import type { Doctor, MedicalDocument, Person } from "@/lib/types";
+import type { Doctor, DocumentFile, MedicalDocument, Person } from "@/lib/types";
 
 export default async function DocumentPage({
   params,
@@ -23,21 +24,25 @@ export default async function DocumentPage({
   if (!row) notFound();
   const doc = row as MedicalDocument;
 
-  const [{ data: signed }, { data: persons }, { data: doctors }] = await Promise.all([
-    supabase.storage.from("documentos").createSignedUrl(doc.storage_path, 60 * 60),
+  const [{ data: fileRows }, { data: persons }, { data: doctors }] = await Promise.all([
+    supabase.from("document_files").select("*").eq("document_id", id).order("position").order("created_at"),
     supabase.from("persons").select("*").eq("family_id", family.id).order("first_name"),
     supabase.from("doctors").select("*").eq("family_id", family.id).order("last_name"),
   ]);
   const person = (persons as Person[] | null)?.find((p) => p.id === doc.person_id);
   const doctor = (doctors as Doctor[] | null)?.find((d) => d.id === doc.doctor_id);
-  const fileUrl = signed?.signedUrl;
-  const isPdf = doc.mime_type === "application/pdf";
+  const files = (fileRows ?? []) as DocumentFile[];
+  const { data: signed } = files.length
+    ? await supabase.storage.from("documentos").createSignedUrls(files.map((f) => f.storage_path), 60 * 60)
+    : { data: [] };
+  const urls = Object.fromEntries((signed ?? []).map((s) => [s.path, s.signedUrl]));
+  const nextPosition = files.reduce((max, f) => Math.max(max, f.position), -1) + 1;
   const editing = editar === "1" || doc.status === "error";
 
   return (
     <>
       <PageHeader
-        title={doc.title ?? doc.file_name ?? "Documento"}
+        title={doc.title ?? "Documento"}
         back={{ href: person ? `/integrantes/${person.id}?tab=estudios` : "/estudios", label: person ? fullName(person) : "Estudios" }}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
@@ -78,7 +83,7 @@ export default async function DocumentPage({
             <form action={updateDocument} className="card space-y-4">
               <h2 className="font-semibold">Corregir datos</h2>
               <input type="hidden" name="id" value={id} />
-              <Field label="Título" name="title" defaultValue={doc.title ?? doc.file_name} required />
+              <Field label="Título" name="title" defaultValue={doc.title} required />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Select
                   label="Tipo"
@@ -222,25 +227,51 @@ export default async function DocumentPage({
         </div>
 
         <div className="lg:col-span-2">
-          <div className="card sticky top-20">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="font-semibold">Archivo original</h2>
-              {fileUrl && (
-                <a href={fileUrl} target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:underline">
-                  Abrir / descargar
-                </a>
-              )}
+          <div className="card lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+            <h2 className="mb-3 font-semibold">
+              {files.length > 1 ? `Hojas del estudio (${files.length})` : "Archivo original"}
+            </h2>
+            {files.length === 0 && <p className="text-sm text-slate-500">Este estudio no tiene hojas cargadas.</p>}
+            <ol className="space-y-4">
+              {files.map((f, i) => {
+                const url = urls[f.storage_path];
+                return (
+                  <li key={f.id}>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+                      <span className="text-slate-500">{files.length > 1 ? `Hoja ${i + 1}` : f.file_name}</span>
+                      <span className="flex items-center gap-3">
+                        {url && (
+                          <a href={url} target="_blank" rel="noreferrer" className="text-brand-700 hover:underline">
+                            Abrir
+                          </a>
+                        )}
+                        {files.length > 1 && (
+                          <ConfirmButton
+                            action={deleteDocumentFile.bind(null, f.id, id)}
+                            message="¿Borrar esta hoja del estudio? Después podés volver a analizarlo."
+                            className="text-slate-400 hover:text-red-600"
+                          >
+                            Borrar
+                          </ConfirmButton>
+                        )}
+                      </span>
+                    </div>
+                    {!url ? (
+                      <p className="text-sm text-slate-500">No se pudo cargar el archivo.</p>
+                    ) : f.mime_type === "application/pdf" ? (
+                      <iframe src={url} title={`Hoja ${i + 1}`} className="h-[70vh] w-full rounded-lg border border-slate-200" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt={`Hoja ${i + 1}`} className="w-full rounded-lg border border-slate-200" />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="mb-2 text-sm text-slate-600">¿Faltó alguna hoja? Agregala y la IA vuelve a leer el estudio completo.</p>
+              <AddPagesButton familyId={family.id} documentId={id} nextPosition={nextPosition} />
             </div>
-            {fileUrl ? (
-              isPdf ? (
-                <iframe src={fileUrl} title="PDF" className="h-[70vh] w-full rounded-lg border border-slate-200" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={fileUrl} alt={doc.title ?? "Estudio"} className="w-full rounded-lg border border-slate-200" />
-              )
-            ) : (
-              <p className="text-sm text-slate-500">No se pudo cargar el archivo.</p>
-            )}
           </div>
         </div>
       </div>

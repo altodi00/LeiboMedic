@@ -17,7 +17,7 @@ export default async function DoctorPage({ params }: { params: Promise<{ id: str
     supabase.from("visits").select("*").eq("doctor_id", id).order("visit_date", { ascending: false }),
     supabase
       .from("documents")
-      .select("id, title, file_name, category, study_date, status, person_id, findings, institution")
+      .select("id, title, category, study_date, status, person_id, findings, institution")
       .eq("doctor_id", id)
       .order("study_date", { ascending: false, nullsFirst: false }),
     supabase.from("persons").select("id, first_name, last_name").eq("family_id", family.id),

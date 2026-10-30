@@ -190,7 +190,7 @@ function Timeline({
     ...documents.map((d) => ({
       date: d.study_date,
       kind: DOCUMENT_CATEGORIES[d.category ?? "otro"] ?? "Estudio",
-      title: d.title ?? d.file_name ?? "Documento",
+      title: d.title ?? "Documento",
       detail: d.diagnoses?.join(" · ") || null,
       href: `/estudios/${d.id}`,
     })),

@@ -12,7 +12,7 @@ export default async function HomePage() {
     supabase.from("persons").select("*").eq("family_id", family.id).order("birth_date", { ascending: true, nullsFirst: false }),
     supabase
       .from("documents")
-      .select("id, title, file_name, category, study_date, status, person_id, findings, institution")
+      .select("id, title, category, study_date, status, person_id, findings, institution")
       .eq("family_id", family.id)
       .order("created_at", { ascending: false })
       .limit(8),

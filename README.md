@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LeiboMedic
 
-## Getting Started
+Web app para tener en un solo lugar toda la información médica de un grupo familiar:
 
-First, run the development server:
+- **Integrantes**: datos personales, obra social, grupo sanguíneo, alergias, condiciones y medicación.
+- **Historial**: línea de tiempo con diagnósticos, cirugías, vacunas, internaciones, visitas y estudios.
+- **Estudios**: se suben con fotos o PDF (un estudio puede tener varias hojas) y una IA (Claude, de Anthropic) los clasifica: tipo de estudio, fecha, a quién corresponde, médico, institución, resumen en lenguaje simple y la tabla de valores con los que están fuera de rango.
+- **Valores**: evolución de cada valor de laboratorio (ej. colesterol, glucemia) a lo largo del tiempo.
+- **Médicos**: especialidad, nombre, teléfono, email, dirección (con link a Google Maps), a quién atiende y todas las visitas.
+- **Visitas**: fecha, médico, motivo, diagnóstico e indicaciones.
+- **Varias cuentas por familia**: cada persona entra con su email y se suma al grupo con un código de invitación.
+
+Funciona en el celular (se puede "agregar a la pantalla de inicio") y en la computadora.
+
+---
+
+## Cómo ponerla en marcha (sin saber programar)
+
+Se usan tres servicios. Los dos primeros tienen plan gratuito; el tercero se paga por uso.
+
+| Servicio | Para qué | Costo |
+|---|---|---|
+| [Supabase](https://supabase.com) | Base de datos, archivos y cuentas de usuario | Gratis (plan Free) |
+| [Vercel](https://vercel.com) | Publicar la página en internet | Gratis (plan Hobby, uso personal) |
+| [Anthropic](https://console.anthropic.com) | La IA que lee los estudios | Pago por uso (ver abajo) |
+
+### Paso 1 — Supabase (la base de datos)
+
+1. Entrá a https://supabase.com, creá una cuenta y apretá **New project**. Elegí un nombre, una contraseña (guardala) y la región **South America (São Paulo)**.
+2. Cuando termine de crearse, andá al menú de la izquierda → **SQL Editor** → **New query**.
+3. Abrí el archivo [`supabase/schema.sql`](supabase/schema.sql) de este repositorio, copiá **todo** su contenido, pegalo y apretá **Run**. Tiene que decir "Success".
+4. Andá a **Project Settings → API** (o **Data API / API Keys**) y anotá:
+   - **Project URL** (algo como `https://abcd1234.supabase.co`)
+   - **anon public key** (también llamada *publishable key*; un texto largo)
+5. (Opcional, recomendado para uso familiar) **Authentication → Sign In / Providers → Email** y desactivá **Confirm email**, así no hace falta confirmar el email al crear la cuenta.
+
+### Paso 2 — Anthropic (la IA)
+
+1. Entrá a https://console.anthropic.com y creá una cuenta.
+2. En **Billing**, cargá crédito (alcanza con el mínimo).
+3. En **API Keys**, creá una clave y copiala (empieza con `sk-ant-`). Solo se muestra una vez.
+
+### Paso 3 — Vercel (publicarla)
+
+1. Entrá a https://vercel.com y creá una cuenta **con tu usuario de GitHub**.
+2. **Add New → Project** → elegí el repositorio **LeiboMedic** → **Import**.
+3. En **Environment Variables** agregá estas tres:
+
+   | Name | Value |
+   |---|---|
+   | `NEXT_PUBLIC_SUPABASE_URL` | la Project URL del paso 1 |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | la anon key del paso 1 |
+   | `ANTHROPIC_API_KEY` | la clave del paso 2 |
+
+4. Apretá **Deploy**. En uno o dos minutos te da la dirección de tu app (algo como `https://leibomedic.vercel.app`).
+5. Volvé a Supabase → **Authentication → URL Configuration** y en **Site URL** pegá esa dirección.
+
+### Paso 4 — Usarla
+
+1. Abrí la dirección, apretá **Creá una cuenta** y creá el grupo familiar.
+2. Agregá a cada integrante.
+3. Tocá **Subir** y sacale una foto a un estudio. Si tiene más hojas, tocá **Agregar hoja** para sumarlas al mismo estudio. Después tocá **Subir y analizar** y esperá unos segundos.
+4. Para que otra persona use la misma familia: en **Familia** está el código de invitación.
+
+---
+
+## Costos aproximados de la IA
+
+Cada estudio analizado es una consulta al modelo Claude Opus 5.5 (US$4 por millón de tokens de entrada y US$20 por millón de salida). Un estudio de 1–2 hojas debería costar del orden de **US$0,02 a US$0,10**; es una estimación, el costo real se ve en https://console.anthropic.com (Usage).
+
+## Privacidad
+
+- Los datos y archivos quedan en tu proyecto de Supabase, en un bucket privado. Cada familia solo puede ver lo suyo (reglas de seguridad a nivel base de datos).
+- Para clasificar un estudio, sus hojas se envían a la API de Anthropic.
+- Cualquiera que tenga el código de invitación puede entrar a la familia: compartilo solo con gente de confianza.
+- La IA puede equivocarse. Los resúmenes no reemplazan la opinión médica; siempre se puede ver el documento original y corregir los datos.
+
+---
+
+## Detalles técnicos
+
+- **Next.js 15** (App Router, Server Actions) + **Tailwind CSS 4**.
+- **Supabase**: Postgres con Row Level Security, Storage (bucket privado `documentos`, rutas `<family_id>/<document_id>/<archivo>`; las hojas de cada estudio están en la tabla `document_files`), Auth con email y contraseña.
+- **IA**: `src/lib/ai.ts` envía todas las hojas del estudio (imágenes y/o PDF, en orden) en un solo pedido a la Messages API, con salida estructurada (Zod) y la lista de integrantes y médicos para que asigne el documento. Usa `fallbacks: "default"` para que, si el modelo rechaza un documento por un falso positivo de seguridad, la API reintente con otro modelo.
+- Las fotos se achican en el navegador antes de subirse (máx. 2200 px, JPEG).
+
+Para correrla localmente:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # completar los valores
+npm install
+npm run dev                  # http://localhost:3000
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

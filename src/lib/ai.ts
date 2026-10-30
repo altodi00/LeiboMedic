@@ -58,19 +58,21 @@ export function isSupportedMime(mime: string) {
 }
 
 export async function analyzeDocument(params: {
-  data: Buffer;
-  mimeType: string;
+  pages: { data: Buffer; mimeType: string }[];
   persons: Pick<Person, "id" | "first_name" | "last_name" | "birth_date" | "sex">[];
   doctors: Pick<Doctor, "id" | "first_name" | "last_name" | "specialty">[];
   hintPersonId?: string | null;
 }): Promise<Analysis> {
   const client = new Anthropic();
-  const base64 = params.data.toString("base64");
-
-  const fileBlock: Anthropic.Beta.BetaContentBlockParam =
-    params.mimeType === "application/pdf"
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
-      : { type: "image", source: { type: "base64", media_type: params.mimeType as ImageType, data: base64 } };
+  const total = params.pages.length;
+  const pageBlocks: Anthropic.Beta.BetaContentBlockParam[] = params.pages.flatMap(({ data, mimeType }, i) => {
+    const base64 = data.toString("base64");
+    const block: Anthropic.Beta.BetaContentBlockParam =
+      mimeType === "application/pdf"
+        ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+        : { type: "image", source: { type: "base64", media_type: mimeType as ImageType, data: base64 } };
+    return total > 1 ? [{ type: "text", text: `Hoja ${i + 1} de ${total}:` }, block] : [block];
+  });
 
   const context = {
     integrantes_de_la_familia: params.persons.map((p) => ({
@@ -98,11 +100,14 @@ export async function analyzeDocument(params: {
       {
         role: "user",
         content: [
-          fileBlock,
+          ...pageBlocks,
           {
             type: "text",
             text:
-              "Analizá este documento médico. Contexto de la familia (JSON):\n" +
+              (total > 1
+                ? `Estas ${total} hojas forman un único estudio o documento médico. Analizalas en conjunto. `
+                : "Analizá este documento médico. ") +
+              "Contexto de la familia (JSON):\n" +
               JSON.stringify(context, null, 2) +
               "\nSi el usuario indicó un integrante, usalo salvo que el documento muestre claramente que es de otra persona.",
           },

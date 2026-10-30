@@ -64,10 +64,6 @@ export type MedicalDocument = {
   person_id: string | null;
   doctor_id: string | null;
   visit_id: string | null;
-  storage_path: string;
-  file_name: string | null;
-  mime_type: string | null;
-  file_size: number | null;
   status: "pendiente" | "procesando" | "listo" | "error";
   error_message: string | null;
   category: string | null;
@@ -82,4 +78,14 @@ export type MedicalDocument = {
   diagnoses: string[];
   highlights: string[];
   created_at: string;
+};
+
+export type DocumentFile = {
+  id: string;
+  document_id: string;
+  position: number;
+  storage_path: string;
+  file_name: string | null;
+  mime_type: string;
+  file_size: number | null;
 };

@@ -221,11 +221,22 @@ export async function updateDocument(formData: FormData) {
 
 export async function deleteDocument(id: string) {
   const { supabase } = await requireFamily();
-  const { data: doc } = await supabase.from("documents").select("storage_path").eq("id", id).maybeSingle();
-  if (doc) await supabase.storage.from("documentos").remove([doc.storage_path]);
+  const { data: files } = await supabase.from("document_files").select("storage_path").eq("document_id", id);
+  if (files?.length) await supabase.storage.from("documentos").remove(files.map((f) => f.storage_path));
   await supabase.from("documents").delete().eq("id", id);
   revalidatePath("/", "layout");
   redirect("/estudios");
+}
+
+/** Borra una hoja de un estudio (el estudio tiene que conservar al menos una). */
+export async function deleteDocumentFile(fileId: string, documentId: string) {
+  const { supabase } = await requireFamily();
+  const { count } = await supabase.from("document_files").select("*", { count: "exact", head: true }).eq("document_id", documentId);
+  if ((count ?? 0) <= 1) fail("El estudio tiene que tener al menos una hoja. Si querés, borrá el estudio completo.");
+  const { data: file } = await supabase.from("document_files").select("storage_path").eq("id", fileId).maybeSingle();
+  if (file) await supabase.storage.from("documentos").remove([file.storage_path]);
+  await supabase.from("document_files").delete().eq("id", fileId);
+  revalidatePath(`/estudios/${documentId}`);
 }
 
 /** Crea un médico con los datos que la IA detectó en el documento y lo vincula. */
